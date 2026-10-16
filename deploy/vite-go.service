@@ -1,0 +1,18 @@
+[Unit]
+Description=Vite Workshop Collaboration System - Go Backend Server
+After=network.target mysql.service mysqld.service
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/go/backend
+ExecStart=/www/wwwroot/go/backend/bin/vite-server
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+StandardOutput=append:/www/wwwlogs/vite-go.log
+StandardError=append:/www/wwwlogs/vite-go.error.log
+
+[Install]
+WantedBy=multi-user.target
