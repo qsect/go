@@ -40,7 +40,9 @@ func main() {
 		Addr:         listenAddr,
 		Handler:      engine,
 		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
+		// 导出 Excel / 大文件上传耗时较长，须 ≥ nginx 的 proxy_read_timeout（300s），
+		// 否则 Go 会先于 nginx 断开，导致导出接口 502/504
+		WriteTimeout: 300 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

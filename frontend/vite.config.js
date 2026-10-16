@@ -10,6 +10,16 @@ export default defineConfig({
     }
   },
   build: {
-    emptyOutDir: false // 关键配置：避免因宝塔锁定文件导致删除失败
+    emptyOutDir: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-element': ['element-plus', '@element-plus/icons-vue'],
+          'vendor-axios': ['axios']
+        }
+      }
+    }
   }
 });

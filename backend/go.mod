@@ -7,6 +7,8 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/microsoft/go-mssqldb v1.7.2
 	golang.org/x/crypto v0.28.0
+	// cemsync 需要 GB18030/Big5 解码（CEM 是 GBK 编码的 ASP.NET 老系统）
+	golang.org/x/text v0.19.0
 )
 
 require (
@@ -35,7 +37,6 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

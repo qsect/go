@@ -119,8 +119,9 @@ func newCemClient() *cemClient {
 	if h == "" {
 		h = "http://cem.ieslab.cn"
 	}
-	u := strings.TrimSpace(config.Get("CEM_USER", "sunyuanchao"))
-	p := strings.TrimSpace(config.Get("CEM_PASS", "Syc@1234560"))
+	// ★ 安全规范：凭据一律只从 .env / 环境变量读取，源码内不得保留任何硬编码兜底口令
+	u := strings.TrimSpace(config.Get("CEM_USER", ""))
+	p := strings.TrimSpace(config.Get("CEM_PASS", ""))
 	cemSessionMu.Lock()
 	jar := getSharedCemJar()
 	cemSessionMu.Unlock()
@@ -689,9 +690,10 @@ type cemPlanMapFile struct {
 
 func cemPlanMapCandidatePaths() []string {
 	return []string{
-		"app/cem/cem_plan_map.json",
 		"storage/cem_plan_map.json",
-		"/www/wwwroot/go/backend/app/cem/cem_plan_map.json",
+		// 过渡期数据源（只读）：旧 PHP 系统的 cron 仍在维护这份映射，
+		// 作为补充来源合并读取。待 Go 侧覆盖度足够、或把 CEM 同步改造为
+		// Go 定时任务后，再移除此路径。
 		"/www/wwwroot/vite/backend/app/cem/cem_plan_map.json",
 	}
 }
@@ -731,8 +733,9 @@ func saveCemPlanMap(m cemPlanMapFile) {
 	if err != nil {
 		return
 	}
-	_ = os.MkdirAll("app/cem", 0755)
-	_ = os.WriteFile("app/cem/cem_plan_map.json", data, 0644)
+	// 统一写入 storage/。
+	// 不再写 app/cem/ —— 该 PHP 脚本目录已随纯 Go 化删除，若保留写回逻辑
+	// 会把 app/cem 目录重新创建出来，导致每次清理都被代码自动破坏。
 	_ = os.MkdirAll("storage", 0755)
 	_ = os.WriteFile("storage/cem_plan_map.json", data, 0644)
 }
@@ -1614,6 +1617,36 @@ func (ctrl *TraceController) SaveConfig(c *gin.Context) {
 				core.Error(c, fmt.Sprintf("物料【%s】实发出库数为 0，禁止保存追溯配置！", cCode), gin.H{})
 				return
 			}
+		}
+	}
+
+	// ★ 业务规则：扫码点数量 > 1 时，1..N 每个扫码点都必须至少挂一种物料。
+	//   否则多设的扫码点没有任何物料，扫码时永远扫不到内容，多点扫码就失去意义。
+	if scanPoints > 1 {
+		covered := make(map[int]bool, scanPoints)
+		for _, ch := range children {
+			sp := core.AsInt(ch["scan_point"])
+			if sp < 1 {
+				sp = 1
+			}
+			if sp > scanPoints {
+				sp = scanPoints
+			}
+			covered[sp] = true
+		}
+		missing := make([]string, 0, scanPoints)
+		for i := 1; i <= scanPoints; i++ {
+			if !covered[i] {
+				missing = append(missing, strconv.Itoa(i))
+			}
+		}
+		if len(missing) > 0 {
+			core.Error(c, fmt.Sprintf("扫码点【%s】下没有任何物料。已设置 %d 个扫码点，请为每个扫码点至少分配一种物料后再保存！",
+				strings.Join(missing, "、"), scanPoints), gin.H{
+				"code":                "SCAN_POINT_EMPTY",
+				"missing_scan_points": missing,
+			})
+			return
 		}
 	}
 

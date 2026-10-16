@@ -655,6 +655,36 @@ const handleSaveMatConfig = async () => {
   const selected = erpMaterials.value.filter(m => m.selected);
   if (selected.length === 0) return ElMessage.warning('请勾选至少一项追溯物料！');
 
+  // ★ 业务规则：设置 N 个扫码点时，1..N 每个扫码点都必须至少分配一种物料，
+  //   否则这些扫码点在扫码环节不会要求扫描任何内容，多点扫码就失去意义。
+  const totalPoints = parseInt(cfgScanPoints.value) || 1;
+  if (totalPoints > 1) {
+    const covered = new Set();
+    selected.forEach(m => {
+      const p = parseInt(m.scan_point) || 1;
+      covered.add(Math.min(Math.max(p, 1), totalPoints));
+    });
+    const missing = [];
+    for (let i = 1; i <= totalPoints; i++) {
+      if (!covered.has(i)) missing.push(i);
+    }
+    if (missing.length > 0) {
+      return ElMessageBox.alert(
+        `<div style="line-height:1.8;">
+          <p>您共设置了 <b>${totalPoints}</b> 个扫码点，但 <b style="color:#e6a23c;">扫码点 ${missing.join('、')}</b> 下还没有分配任何物料。</p>
+          <p style="color:#606266;">请先在下方「指派扫码点」列中，为这些扫码点各分配至少一种物料，然后再保存。</p>
+          <p style="color:#909399; font-size:12px;">提示：没有物料的扫码点在扫码时不会要求扫描任何内容，设置多个扫码点将失去意义。</p>
+        </div>`,
+        '扫码点配置不完整，无法保存',
+        {
+          type: 'warning',
+          confirmButtonText: '返回修改',
+          dangerouslyUseHTMLString: true
+        }
+      );
+    }
+  }
+
   await request.post('/trace/saveConfig', {
     task_order: erpTask.value.task_order,
     parent_code: erpTask.value.parent_code,

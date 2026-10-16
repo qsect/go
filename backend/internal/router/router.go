@@ -2,10 +2,7 @@ package router
 
 import (
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"path/filepath"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"vite-system-go/internal/config"
@@ -518,21 +515,10 @@ func NewEngine() *gin.Engine {
 
 	// ============================================================
 	// 12. 未知路由兜底
+	//     纯 Go 后端：不再反代至旧 PHP，统一返回 404 ROUTE_NOT_FOUND
 	// ============================================================
-	fallbackURL := strings.TrimSpace(config.Get("PHP_FALLBACK_URL", ""))
-	var proxy *httputil.ReverseProxy
-	if fallbackURL != "" {
-		if target, err := url.Parse(fallbackURL); err == nil {
-			proxy = httputil.NewSingleHostReverseProxy(target)
-		}
-	}
-
 	r.NoRoute(func(c *gin.Context) {
 		reqPath := c.Request.URL.Path
-		if proxy != nil && strings.HasPrefix(reqPath, "/api/") {
-			proxy.ServeHTTP(c.Writer, c.Request)
-			return
-		}
 		core.Error(c, "接口不存在: "+reqPath, gin.H{
 			"code": "ROUTE_NOT_FOUND",
 			"path": reqPath,
